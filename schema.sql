@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS member (
     id BIGINT PRIMARY KEY,
     name TEXT,
     bio TEXT,
+    email TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
@@ -12,6 +13,6 @@ CREATE TABLE IF NOT EXISTS member_passwords (
 
 CREATE TABLE IF NOT EXISTS session (
     token TEXT PRIMARY KEY,
-    usr_id BIGINT REFERENCES member (id),
+    user_id BIGINT REFERENCES member (id),
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
 );

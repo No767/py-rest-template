@@ -6,9 +6,16 @@ import asyncpg
 from fastapi import HTTPException
 from utils.requests import RouteRequest
 
+from sonyflake import SonyFlake
+
+_id_generator = SonyFlake()
+
+
+def generate_id() -> int:
+    if not _id_generator:
+        raise RuntimeError("_id_generator is None")
+
+    return _id_generator.next_id()
+
 async def use(request: RouteRequest) -> AsyncGenerator[asyncpg.Pool, None]:
-    """
-    This function is a context manager that yields a database session.
-    Use this in FastAPI route functions to access the database.
-    """
     yield request.app.pool

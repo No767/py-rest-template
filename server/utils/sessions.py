@@ -2,34 +2,26 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from typing import Annotated, AsyncGenerator, TYPE_CHECKING, Optional
+from typing import Annotated, AsyncGenerator, TYPE_CHECKING, Optional, Union
 
-# import db
-# from db.models import Session
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from datetime import datetime, timezone
 import msgspec
 from utils import db
+from pydantic import BaseModel
 
 import asyncpg
-# from sqlmodel import select
-
+from utils.requests import RouteRequest
 
 SESSION_EXPIRY = timedelta(days=7)
 SESSION_RENEW_AFTER = timedelta(days=1)
 
-class Session(msgspec.Struct):
+class Session(BaseModel, frozen=True):
     token: str
     user_id: Optional[int]
     expires_at: datetime
     
-    def to_dict(self):
-        return {f: getattr(self, f) for f in self.__struct_fields__}
-    
-    def to_list(self):
-        return [getattr(self, f) for f in self.__struct_fields__]
-
 
 async def authorize(
     creds: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
@@ -77,7 +69,7 @@ async def authorize(
         yield session["user_id"]
 
 
-async def new_session(db: asyncpg.Pool, user_id: int) -> Session:
+async def new_session(user_id: int, *, connection: Union[asyncpg.Connection, asyncpg.Pool]) -> Session:
     """
     This function creates a new session for a user and adds it to the database.
     The session is returned.
@@ -91,7 +83,7 @@ async def new_session(db: asyncpg.Pool, user_id: int) -> Session:
         user_id=user_id,
         expires_at=datetime.now() + SESSION_EXPIRY,
     )
-    await db.execute(query, *session.to_list())
+    await connection.execute(query, *session.model_dump().values())
     return session
 
 

@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Development libraries
+lefthook>=1.11.2,<2
+pyright[nodejs]>=1.1.395,<2
+ruff>=0.9.8,<1
+tox>=4.24.1,<5

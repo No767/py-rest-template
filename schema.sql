@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS member (
+    id BIGINT PRIMARY KEY,
+    name TEXT,
+    bio TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
+);
+
+CREATE TABLE IF NOT EXISTS member_passwords (
+    id BIGINT PRIMARY KEY REFERENCES member (id) ON DELETE CASCADE ON UPDATE NO ACTION,
+    passhash TEXT
+);
+
+CREATE TABLE IF NOT EXISTS session (
+    token TEXT PRIMARY KEY,
+    usr_id BIGINT REFERENCES member (id),
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
+);

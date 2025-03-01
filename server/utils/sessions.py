@@ -2,26 +2,23 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from typing import Annotated, AsyncGenerator, TYPE_CHECKING, Optional, Union
-
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from datetime import datetime, timezone
-import msgspec
-from utils import db
-from pydantic import BaseModel
+from typing import Annotated, AsyncGenerator, Optional, Union
 
 import asyncpg
-from utils.requests import RouteRequest
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
+from utils import db
 
 SESSION_EXPIRY = timedelta(days=7)
 SESSION_RENEW_AFTER = timedelta(days=1)
+
 
 class Session(BaseModel, frozen=True):
     token: str
     user_id: Optional[int]
     expires_at: datetime
-    
+
 
 async def authorize(
     creds: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
@@ -55,7 +52,7 @@ async def authorize(
             WHERE token = $1;
             """
             new_expires_at = datetime.now() + SESSION_EXPIRY
-            
+
             tr = connection.transaction()
             await tr.start()
             try:
@@ -69,7 +66,9 @@ async def authorize(
         yield session["user_id"]
 
 
-async def new_session(user_id: int, *, connection: Union[asyncpg.Connection, asyncpg.Pool]) -> Session:
+async def new_session(
+    user_id: int, *, connection: Union[asyncpg.Connection, asyncpg.Pool]
+) -> Session:
     """
     This function creates a new session for a user and adds it to the database.
     The session is returned.

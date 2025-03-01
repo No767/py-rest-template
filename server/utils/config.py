@@ -1,13 +1,10 @@
-import logging
-import os
-import sys
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar, Union, overload
 
 import yaml
 
 _T = TypeVar("_T")
+
 
 class ServerConfig(Generic[_T]):
     def __init__(self, path: Path):

@@ -1,14 +1,20 @@
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi_pagination.ext.sqlmodel import paginate
-from pydantic import BaseModel
-from utils.sessions import authorize, hash_password, new_session, verify_password, Session
-from utils import db
-from utils.requests import RouteRequest
 import asyncpg
-from utils.responses import NotFoundMessage, ConflictMessage, UnauthorizedMessage
-from utils.exceptions import NotFoundException, ConflictException, UnauthorizedException
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from utils import db
+from utils.exceptions import ConflictException, NotFoundException, UnauthorizedException
+from utils.requests import RouteRequest
+from utils.responses import ConflictMessage, NotFoundMessage, UnauthorizedMessage
+from utils.sessions import (
+    Session,
+    authorize,
+    hash_password,
+    new_session,
+    verify_password,
+)
+
 router = APIRouter(tags=["Me"])
 
 
@@ -17,7 +23,9 @@ class LoginRequest(BaseModel):
     password: str
 
 
-@router.post("/login", responses={200: {"model": Session}, 401: {"model": UnauthorizedMessage}})
+@router.post(
+    "/login", responses={200: {"model": Session}, 401: {"model": UnauthorizedMessage}}
+)
 async def login(request: RouteRequest, req: LoginRequest) -> Session:
     """Logs in a member and returns a session token"""
     query = """
@@ -26,7 +34,7 @@ async def login(request: RouteRequest, req: LoginRequest) -> Session:
     INNER JOIN member_passwords ON member.id = member_passwords.id
     WHERE email = $1;
     """
-    
+
     async with request.app.pool.acquire() as connection:
         member = await request.app.pool.fetchrow(query, req.email)
 
@@ -49,12 +57,12 @@ class RegisterRequest(BaseModel):
     password: str
 
 
-@router.post("/register", responses={200: {"model": Session}, 409: {"model": ConflictMessage}})
-async def register(
-    request: RouteRequest, req: RegisterRequest
-) -> Session:
+@router.post(
+    "/register", responses={200: {"model": Session}, 409: {"model": ConflictMessage}}
+)
+async def register(request: RouteRequest, req: RegisterRequest) -> Session:
     """Registers a new member, and returns a session token"""
-    
+
     query = """
     WITH insert_member AS (
         INSERT INTO members (id, name, email, bio)
@@ -64,22 +72,28 @@ async def register(
     INSERT INTO member_passwords (id, passhash)
     VALUES ((SELECT id FROM insert_member), $5);
     """
-    
+
     async with request.app.pool.acquire() as connection:
         tr = connection.transaction()
         await tr.start()
-        
+
         new_member_id = db.generate_id()
-        
+
         try:
-            await connection.execute(query, new_member_id, *req.model_dump().values(), hash_password(req.password))
+            await connection.execute(
+                query,
+                new_member_id,
+                *req.model_dump().values(),
+                hash_password(req.password),
+            )
         except asyncpg.UniqueViolationError:
             await tr.rollback()
             raise ConflictException()
         else:
             await tr.commit()
-            
+
         return await new_session(new_member_id, connection=connection)
+
 
 class MeResponse(BaseModel, frozen=True):
     id: int
@@ -88,7 +102,9 @@ class MeResponse(BaseModel, frozen=True):
     bio: str
 
 
-@router.get("/users/me", responses={200: {"model": MeResponse}, 404: {"model": NotFoundMessage}})
+@router.get(
+    "/users/me", responses={200: {"model": MeResponse}, 404: {"model": NotFoundMessage}}
+)
 async def get_self(
     request: RouteRequest,
     me_id: Annotated[int, Depends(authorize)],
@@ -103,20 +119,23 @@ async def get_self(
 
     if not member:
         raise NotFoundException()
-    
+
     return MeResponse(**dict(member))
+
 
 class UpdateMemberRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     bio: Optional[str] = None
     password: Optional[str] = None
-    
+
+
 class Member(BaseModel):
     id: int
     name: str
     email: str
     bio: str
+
 
 class MemberWithPasshash(Member):
     passhash: str
@@ -129,14 +148,14 @@ async def update_member(
     me_id: Annotated[int, Depends(authorize)],
 ) -> Member:
     """Updates the specified authenticated user"""
-    
+
     member_query = """
     SELECT member.id, member.name, member.bio, member.email, member_passwords.passhash
     FROM member
     INNER JOIN member_passwords ON member.id = member_passwords.id
     WHERE id = $1;
     """
-    
+
     update_query = """
     WITH update_member AS (
         UPDATE member
@@ -153,7 +172,6 @@ async def update_member(
     """
 
     async with request.app.pool.acquire() as connection:
-    
         rows = await connection.fetchrow(member_query, me_id)
         copied_rows = MemberWithPasshash(**dict(rows))
         for key, value in req.model_dump().items():
@@ -163,7 +181,8 @@ async def update_member(
                 case _:
                     setattr(copied_rows, key, value)
 
-        updated_member = await connection.fetchrow(update_query, me_id, *copied_rows.model_dump().values())
-
+        updated_member = await connection.fetchrow(
+            update_query, me_id, *copied_rows.model_dump().values()
+        )
 
         return Member(**dict(updated_member))

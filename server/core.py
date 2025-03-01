@@ -2,26 +2,23 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Generator, Optional, Self, Union, Unpack
+from typing import TYPE_CHECKING, Any, Generator, Optional, Self
 
-import orjson
-from fastapi import Depends, FastAPI, status
-from fastapi.exceptions import HTTPException, RequestValidationError
-from fastapi.openapi.utils import get_openapi
-from fastapi.responses import ORJSONResponse, Response
-from fastapi.utils import is_body_allowed_for_status_code
 import asyncpg
+from fastapi import Depends, FastAPI, status
+from fastapi.openapi.utils import get_openapi
+from fastapi.responses import ORJSONResponse
 
 if TYPE_CHECKING:
     from utils.config import ServerConfig
-    
+
 
 __title__ = "py-rest-templte"
 __description__ = "Performance-driven FastAPI template for MLH Hackathons"
 __version__ = "0.1.0a"
 
+
 class Server(FastAPI):
-    
     pool: asyncpg.Pool
 
     def __init__(
@@ -43,14 +40,11 @@ class Server(FastAPI):
         )
         self.config = config
 
-
     ### Server-related utilities
-    
+
     @asynccontextmanager
     async def lifespan(self, app: Self):
-        async with asyncpg.create_pool(
-            dsn=self.config["postgres_uri"]
-        ) as app.pool:
+        async with asyncpg.create_pool(dsn=self.config["postgres_uri"]) as app.pool:
             yield
 
     def get_db(self) -> Generator[asyncpg.Pool, None, None]:
